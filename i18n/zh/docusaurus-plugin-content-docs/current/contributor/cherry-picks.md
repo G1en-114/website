@@ -10,10 +10,8 @@ translated: true
 ## 先决条件
 
 - 一个已合并到 `master` 分支的拉取请求。
-- 发布分支已存在（例如：[`release-2.4`](https://github.com/Project-HAMi/HAMi/releases)）
-- 正常配置的 git 和 GitHub shell 环境，用于推送到 GitHub 上的 HAMi `origin` fork，并对配置的远程 `upstream` 提交拉取请求，该 `upstream` 跟踪 `https://github.com/Project-HAMi/HAMi`，包括 `GITHUB_USER`。
-- 按照[安装说明](https://github.com/cli/cli#installation)安装 GitHub CLI (`gh`)。
-- 一个具有 "repo" 和 "read:org" 权限的 GitHub 个人访问令牌。权限是为 [gh auth login](https://cli.github.com/manual/gh_auth_login) 所需，与 cherry-pick 创建过程无关（创建分支和发起 PR）。
+- 目标发布分支已存在（例如 `release-v2.11`）。
+- 已配置 Git 和 GitHub，`origin` 指向你的 fork，`upstream` 指向 `Project-HAMi/HAMi`。
 
 ## 哪些 PR 适合进行 Cherry Pick
 
@@ -44,36 +42,31 @@ translated: true
 
 ## 发起 Cherry Pick
 
-- 运行 [cherry pick 脚本][cherry-pick-script]
+在本地 HAMi 仓库中，从目标发布分支创建一个回移分支。下面以 `release-v2.11` 为例。将 `MERGED_COMMIT_SHA` 替换为 `master` 上包含修复的提交 SHA。如果 PR 是 squash 合并的，请使用合并后的提交。
 
-  此示例将 master 分支的 PR #1206 应用于远程分支 `upstream/release-1.0`：
+```bash
+git fetch upstream
+git switch -c backport-fix-v2.11 upstream/release-v2.11
+git cherry-pick -x -s MERGED_COMMIT_SHA
+git push -u origin backport-fix-v2.11
+```
 
-  ```shell
-  hack/cherry_pick_pull.sh upstream/release-1.0 1206
-  ```
-
-  - 请注意，cherry pick 脚本假定你有一个名为 `upstream` 的 git 远程指向 HAMi GitHub 组织。
-
-  - 你需要为每个想要进行 cherry pick 的补丁发布单独运行 cherry pick 脚本。cherry pick 应应用于所有适用修复的活动发布分支。
-
-  - 如果未设置 `GITHUB_TOKEN`，你将被要求输入 GitHub 密码：提供 GitHub [个人访问令牌](https://github.com/settings/tokens) 而不是实际的 GitHub 密码。如果你可以安全地将环境变量 `GITHUB_TOKEN` 设置为你的个人访问令牌，则可以避免交互式提示。参考 [https://github.com/github/hub/issues/2655#issuecomment-735836048](https://github.com/github/hub/issues/2655#issuecomment-735836048)
+从 fork 的 `backport-fix-v2.11` 分支向 `Project-HAMi/HAMi:release-v2.11` 发起 PR，并链接原 PR。每个目标发布分支都使用独立的回移分支和 PR。
 
 ## Cherry Pick 审核
 
 与其他 PR 一样，代码 OWNERS 会根据需要对 cherry pick PR 进行审核 (`/lgtm`) 和批准 (`/approve`)。
 
-与正常的拉取请求相同，发布说明要求适用，除了发布说明部分将自动从发起 cherry pick 的 master 分支拉取请求中填充。
+遵循通常的发布说明要求，并参考原 PR 补充上下文。
 
 ## Cherry Pick 故障排除
 
 贡献者在发起 cherry pick 时可能会遇到以下一些困难。
 
-- cherry pick PR 无法干净地应用于旧的发布分支。在这种情况下，你需要手动修复冲突。
+- 如果 cherry pick 发生冲突，解决冲突并用 `git add` 暂存文件，然后运行 `git cherry-pick --continue`，再推送分支。
 
-- cherry pick PR 包含无法通过 CI 测试的代码。在这种情况下，你需要从你的 fork 中获取自动生成的分支，修改有问题的提交并强制推送到自动生成的分支。或者，你可以创建一个新的 PR，这样会更繁琐。
+- 如果回移分支的 CI 失败，在该分支修复问题后，将更新后的分支推送到你的 fork。
 
 ## 不支持版本的 Cherry Pick
 
 社区支持和补丁的版本需要讨论。
-
-[cherry-pick-script]: https://github.com/Project-HAMi/HAMi/blob/master/hack/cherry_pick_pull.sh
